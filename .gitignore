@@ -12,7 +12,7 @@ example/data/local_saved/
 .ipynb_checkpoints*
 # C extensions
 *.so
-
+.env*
 # Distribution / packaging
 .Python
 build/

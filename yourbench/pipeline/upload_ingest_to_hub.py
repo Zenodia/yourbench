@@ -45,7 +45,7 @@ import glob
 import uuid
 from typing import Any, Optional
 from dataclasses import field, dataclass
-
+from colorama import Fore
 from loguru import logger
 
 from datasets import Dataset
@@ -107,7 +107,8 @@ def run(config: dict[str, Any]) -> None:
     """
     stage_name = "upload_ingest_to_hub"
     stage_cfg = config.get("pipeline", {}).get(stage_name, {})
-
+    local_dataset_dir=config.get("local_dataset_dir","./example/data/local_saved/")
+    print(Fore.YELLOW +"local_dataset_dir =", local_dataset_dir)
     # Check if this stage is turned off in config
     if not stage_cfg.get("run", False):
         logger.info(f"Stage '{stage_name}' is disabled. Skipping.")
@@ -148,9 +149,10 @@ def run(config: dict[str, Any]) -> None:
 
     # Convert the ingested markdown docs to a Hugging Face Dataset
     dataset = _convert_ingested_docs_to_dataset(ingested_documents)
-
+    dataset.save_to_disk(local_dataset_dir)
+    logger.success(f"Dataset successfully saved locally to: '{local_dataset_dir}'")
     # Save or push the dataset to the configured location
-    custom_save_dataset(dataset=dataset, config=config, subset="ingested")
+    #custom_save_dataset(dataset=dataset, config=config, subset="ingested", push_to_hub=False)
     logger.success(f"Successfully completed '{stage_name}' stage.")
 
 

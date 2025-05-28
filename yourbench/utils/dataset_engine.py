@@ -6,7 +6,7 @@ from loguru import logger
 from datasets import Dataset, DatasetDict, load_dataset, load_from_disk, concatenate_datasets
 from huggingface_hub import HfApi, whoami
 from huggingface_hub.utils import HFValidationError
-
+from colorama import Fore
 
 class ConfigurationError(Exception):
     """Exception raised for errors in the configuration."""
@@ -164,7 +164,7 @@ def custom_load_dataset(config: Dict[str, Any], subset: Optional[str] = None) ->
     Load a dataset subset from a local directory if specified, otherwise from Hugging Face.
     In offline mode, only load from local directory.
     """
-    local_dataset_dir = config.get("local_dataset_dir", None)
+    local_dataset_dir = config.get("local_dataset_dir", "./example/data/local_saved/")
     if (
         local_dataset_dir is None
         and "hf_configuration" in config
@@ -174,9 +174,12 @@ def custom_load_dataset(config: Dict[str, Any], subset: Optional[str] = None) ->
 
     # First try loading from local path
     if local_dataset_dir:
+        print("local_dataset_dir=", local_dataset_dir, " exists:",os.path.exists(local_dataset_dir))
         if os.path.exists(local_dataset_dir):
+            print(Fore.YELLOW +"loading local_dataset_dir=", local_dataset_dir)
             logger.info(f"Loading dataset locally from '{local_dataset_dir}'")
             dataset = load_from_disk(local_dataset_dir)
+            print(Fore.CYAN +"loading local_dataset_dir into dataset successfully")
             # If subset is specified and this is a DatasetDict, return only the subset
             if subset and isinstance(dataset, DatasetDict):
                 if subset in dataset:
@@ -218,7 +221,7 @@ def custom_save_dataset(
     config: Dict[str, Any],
     subset: Optional[str] = None,
     save_local: bool = True,
-    push_to_hub: bool = True,
+    push_to_hub: bool = False,
 ) -> None:
     """
     Save a dataset subset locally and push it to Hugging Face Hub.
@@ -237,14 +240,15 @@ def custom_save_dataset(
 
     dataset_repo_name = _get_full_dataset_repo_name(config)
 
-    local_dataset_dir = config.get("local_dataset_dir", None)
+    local_dataset_dir = config.get("local_dataset_dir", "C./example/data/local_saved/")
     if (
         local_dataset_dir is None
         and "hf_configuration" in config
         and "local_dataset_dir" in config["hf_configuration"]
     ):
         local_dataset_dir = config["hf_configuration"].get("local_dataset_dir")
-
+    save_local=True
+    local_dataset_dir="./example/data/local_saved/"
     if local_dataset_dir and save_local:
         logger.info(f"Saving dataset locally to: '{local_dataset_dir}'")
 

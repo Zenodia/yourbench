@@ -8,7 +8,8 @@ from loguru import logger
 
 from yourbench.analysis import run_analysis
 from yourbench.pipeline.handler import run_pipeline
-
+import locale
+locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
 app = typer.Typer(
     name="yourbench",
@@ -42,7 +43,7 @@ def run(
         help="Path to the configuration file (YAML, JSON). If not provided, attempts to use last used config.",
     ),
     debug: bool = typer.Option(
-        False,
+        True,
         "--debug",
         help="Enable debug logging for additional details.",
     ),
