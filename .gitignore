@@ -8,6 +8,8 @@ plots/
 files/
 .gradio/
 example/data/processed/
+example/data/local_saved/
+.ipynb_checkpoints*
 # C extensions
 *.so
 
