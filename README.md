@@ -76,18 +76,17 @@ pip install yourbench
 # For example, create a .env file with required keys:
 # echo "OPENROUTER_API_KEY=<your_openrouter_api_key>" >> .env        # Example
 echo "HF_TOKEN=<your_huggingface_api_token>" >> .env              # Hugging Face token (for Hub datasets & inference)
-echo "HF_ORGANIZATION=<your_hf_username_or_org>" >> .env          # (Optional) Organization name for dataset pushing
+echo "NVIDIA_API_KEY"=<your_nvidia_api_key > >> .env          # set your NVIDIA_API_KEY
+echo "local_dataset_dir"="./example/data/local_saved/" >> .env          # set path to locally saved dataset instead of pushing to the huggingface hub, I usually set it to be "./example/data/local_saved/"
+
+Note: 
+remember to ```export HF_HUB_OFFLINE=1``` 
+for windows users do ```set HF_HUB_OFFLINE=1``` 
+
+
 
 # 3. Run the pipeline on the provided example config (uses sample docs and models)
-yourbench run --config example/configs/simple_example.yaml
-
-# 4. (Optional) Run the pipeline on your own documents:
-yourbench run --config my_custom_config.yaml
-```
-
-The **example configuration** `example/configs/simple_example.yaml` (included in the repository) demonstrates a basic setup. It specifies sample documents and default models for each stage of the pipeline. In step 3 above, YourBench will automatically ingest the example documents, generate a set of Q\&A pairs, and output a Hugging Face Dataset containing the evaluation questions and answers.
-
-For your own data, you can create a YAML config pointing to your documents and preferred models. For instance, you might specify a folder of PDFs or text files under a `documents` field, and choose which LLM to use for question generation. **YourBench is fully configurable** – you can easily **toggle stages** on or off and swap in different models. *For example: you could disable the summarization stage for very short texts, or use a powerful, large, API model for question generation while using a faster local model for summarization.* The possibilities are endless! Simply adjust the YAML, and the pipeline will accommodate it. (See the [usage example](https://github.com/huggingface/yourbench/blob/main/example/configs/advanced_example.yaml) for all available options!)
+yourbench run --config my_example.yaml
 
 ## Process Flow
 
