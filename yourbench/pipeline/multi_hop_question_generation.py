@@ -65,7 +65,9 @@ from yourbench.utils.dataset_engine import (
 from yourbench.utils.parsing_engine import shuffle_mcq, parse_qa_pairs_from_response
 from yourbench.utils.inference_engine import InferenceCall, run_inference
 from datasets import Dataset, DatasetDict, load_dataset, load_from_disk, concatenate_datasets
-
+from colorama import Fore
+import pandas as pd
+ 
 
 @dataclass
 class QuestionAnswerPair:
@@ -157,9 +159,9 @@ def run(config: Dict[str, Any]) -> None:
     summarized_dataset = load_from_disk(dataset_path=os.environ["local_dataset_dir"]+"summarized")
     dataset=concatenate_datasets([chunked_dataset, summarized_dataset])
     logger.info(f"Loaded chunked subset with {len(dataset)} rows for Multi-hop question generation.")
-
+    
     # 2) Build Inference Calls (including sampling)
-    inference_calls, call_index_map = _multihop_chunk_sampling_and_calls(dataset, stage_cfg)
+    inference_calls, call_index_map = _multihop_chunk_sampling_and_calls(config, dataset, stage_cfg)
 
     # 3) Run Inference
     if not inference_calls:
@@ -178,18 +180,29 @@ def run(config: Dict[str, Any]) -> None:
     logger.success("Multi-hop question generation completed successfully.")
 
 
-def _multihop_chunk_sampling_and_calls(dataset, stage_cfg: Dict[str, Any]):
+def _multihop_chunk_sampling_and_calls(config,dataset, stage_cfg: Dict[str, Any]):
     """
     Sample multi-hop chunks and build InferenceCalls.
     Returns:
       - inference_calls: list of InferenceCall
       - call_index_map: parallel list of (row_idx, doc_id, source_chunk_ids)
     """
-
+    localized_language = config["language_of_interest"] if config["language_of_interest"] else 'English'
+    print(Fore.MAGENTA +"localized_language=", localized_language, Fore.RESET)
     if stage_cfg.get("question_type") == "multi-choice":
-        system_prompt = MULTI_HOP_QUESTION_GENERATION_SYSTEM_PROMPT_MULTI
+        if localized_language =="English":
+            system_prompt = MULTI_HOP_QUESTION_GENERATION_SYSTEM_PROMPT_MULTI    
+        else:
+            system_prompt = (MULTI_HOP_QUESTION_GENERATION_SYSTEM_PROMPT_MULTI
+                          + f"Ensure you convert the 'questions' and the 'answers' to {localized_language}"
+            )
     else:
-        system_prompt = MULTI_HOP_QUESTION_GENERATION_SYSTEM_PROMPT
+        if localized_language =="English":
+            system_prompt = MULTI_HOP_QUESTION_GENERATION_SYSTEM_PROMPT    
+        else :
+            system_prompt = (MULTI_HOP_QUESTION_GENERATION_SYSTEM_PROMPT
+            + f"Ensure you convert the 'questions' and the 'answers' to {localized_language}"
+            )
     system_msg = {
         "role": "system",
         "content": system_prompt,
@@ -292,6 +305,16 @@ def _multihop_qa_generation(config: Dict[str, Any], inference_calls: list[Infere
         inference_calls=inference_calls,
     )
 
+def fetch_ls_of_json_outputs(output_content, ls_of_d):
+    if '<output_json>' in output_content and '</output_json>' in output_content:
+        start=output_content.index('<output_json>') +13
+        end=output_content.index('</output_json>') 
+        list_of_jsons=output_content[start:end]
+        ls_of_dict=eval(list_of_jsons)
+        ls_of_d.extend(ls_of_dict)
+        return ls_of_d
+    else:
+        return ls_of_d
 
 def _parse_and_build_final(
     config: Dict[str, Any],
@@ -303,14 +326,19 @@ def _parse_and_build_final(
     Parse each model's responses into MultiHopQuestionRow items, then build a final dataset.
     """
     final_multi_hop_questions = []
-
+    multi_hop_qa_pairs = []
+    f=open("./logs/multi_hops_qa_pairs.txt", "w", encoding="utf-8")
     for model_name, model_responses in responses_dict.items():
         logger.info(f"Processing {len(model_responses)} responses for model: {model_name}")
         if len(model_responses) != len(call_index_map):
             logger.error(
                 f"Model '{model_name}' returned {len(model_responses)} responses; expected {len(call_index_map)}. Mismatch."
             )
-
+        print(Fore.GREEN +"model_responses", model_responses, Fore.RESET + '\n')
+        if isinstance(model_responses, list) and len(model_responses) > 0:
+            f.write(model_responses[0])
+        output_ls_json=fetch_ls_of_json_outputs(model_responses, multi_hop_qa_pairs)
+        #multi_hop_qa_pairs.extend(output_ls_json)
         for idx, raw_resp in enumerate(model_responses):
             if idx >= len(call_index_map):
                 break
@@ -356,7 +384,8 @@ def _parse_and_build_final(
                 except Exception as pair_error:
                     logger.warning(f"Error processing QA pair for doc_id={doc_id}, skipping pair: {pair_error}")
                     continue
-
+    df=pd.DataFrame(multi_hop_qa_pairs)
+    df.to_csv("./logs/multi_hops_qa_pairs.csv", index=False, encoding="utf-8")
     if not final_multi_hop_questions:
         return None
 

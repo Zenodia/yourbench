@@ -17,9 +17,9 @@ import tiktoken
 from dotenv import load_dotenv
 from loguru import logger
 from tqdm.asyncio import tqdm_asyncio
-
+from colorama import Fore
 from huggingface_hub import AsyncInferenceClient
-
+import pandas as pd
 
 load_dotenv()
 
@@ -30,7 +30,7 @@ _cost_data = collections.defaultdict(lambda: {"input_tokens": 0, "output_tokens"
 _individual_log_file = os.path.join("logs", "inference_cost_log_individual.csv")
 _aggregate_log_file = os.path.join("logs", "inference_cost_log_aggregate.csv")
 _individual_header_written = False
-
+_log_output_content = os.path.join("logs", "inference_call_output_content.csv")
 
 @dataclass
 class Model:
@@ -125,7 +125,7 @@ def _log_individual_call(model_name: str, input_tokens: int, output_tokens: int,
         _ensure_logs_dir()
         is_new_file = not os.path.exists(_individual_log_file)
         mode = "a" if not is_new_file else "w"
-
+        
         with open(_individual_log_file, mode, newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             # Write header only if the file is new or header wasn't written yet in this run
@@ -173,7 +173,6 @@ def _write_aggregate_log():
 # Register the aggregate log function to run at exit
 atexit.register(_write_aggregate_log)
 
-
 async def _get_response(model: Model, inference_call: InferenceCall) -> str:
     """
     Send one inference call to the model endpoint within a global timeout context.
@@ -215,7 +214,8 @@ async def _get_response(model: Model, inference_call: InferenceCall) -> str:
         raise Exception("Failed Inference")
 
     output_content = response.choices[0].message.content
-
+        
+    #print(Fore.GREEN + "inference call output_content", output_content, Fore.RESET)
     try:
         encoding = _get_encoding(model.encoding_name)
         input_tokens = _count_message_tokens(inference_call.messages, encoding)

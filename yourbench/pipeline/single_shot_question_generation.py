@@ -49,7 +49,8 @@ from yourbench.utils.dataset_engine import (
 from yourbench.utils.parsing_engine import shuffle_mcq, parse_qa_pairs_from_response
 from yourbench.utils.inference_engine import InferenceCall, run_inference
 from datasets import Dataset, DatasetDict, load_dataset, load_from_disk, concatenate_datasets
-
+from colorama import Fore
+import pandas as pd
 @dataclass
 class SingleHopQuestionRow:
     """
@@ -123,7 +124,7 @@ def run(config: dict[str, Any]) -> None:
     dataset=concatenate_datasets([chunked_dataset, summarized_dataset])
     logger.info(f"Loaded chunked subset with {len(dataset)} rows for Single-shot question generation.")
 
-    inference_calls, call_index_mapping = _build_inference_calls(dataset, stage_config)
+    inference_calls, call_index_mapping = _build_inference_calls(config, dataset, stage_config)
     if not inference_calls:
         logger.warning("No inference calls were created for single_shot_question_generation.")
         return
@@ -207,16 +208,39 @@ def _sample_chunks_if_needed(
     return chunks_list
 
 
-def _build_inference_calls(dataset, stage_config: SingleShotQuestionGenerationConfig):
+def fetch_ls_of_json_outputs(output_content, ls_of_d):
+    if '<output_json>' in output_content and '</output_json>' in output_content:
+        start=output_content.index('<output_json>') +13
+        end=output_content.index('</output_json>') 
+        list_of_jsons=output_content[start:end]
+        ls_of_dict=eval(list_of_jsons)
+        ls_of_d.extend(ls_of_dict)
+        return ls_of_d
+    else:
+        return ls_of_d
+
+
+def _build_inference_calls(config ,dataset, stage_config: SingleShotQuestionGenerationConfig):
     """
     Create the InferenceCall objects needed for single-shot question generation.
     Returns the list of calls and a parallel mapping of (row_index, doc_id, chunk_id).
     """
-
+    localized_language = config["language_of_interest"] if config["language_of_interest"] else 'English'
+    print(Fore.MAGENTA +"localized_language=", localized_language, Fore.RESET)
     if stage_config.question_type == "multi-choice":
-        system_prompt = QUESTION_GENERATION_SYSTEM_PROMPT_MULTI
+        if localized_language =="English":
+            system_prompt = QUESTION_GENERATION_SYSTEM_PROMPT_MULTI
+        else:
+            system_prompt = (QUESTION_GENERATION_SYSTEM_PROMPT_MULTI +
+                         + f"Ensure you convert the 'questions' and the 'answers' to {localized_language}"
+            )
     else:
-        system_prompt = QUESTION_GENERATION_SYSTEM_PROMPT
+        if localized_language =="English":
+            system_prompt = QUESTION_GENERATION_SYSTEM_PROMPT
+        else: 
+            system_prompt = (QUESTION_GENERATION_SYSTEM_PROMPT
+                         + f"Ensure you convert the 'questions' and the 'answers' to {localized_language}"
+            )
 
     system_message = {"role": "system", "content": system_prompt}
     inference_calls = []
@@ -292,14 +316,20 @@ def _process_responses_and_build_dataset(
     of single-shot question rows.
     """
     question_dataset_rows = []
-
+    single_hop_qa_pairs = []
+    f=open("./logs/single_hop_qa_pairs.txt", "w", encoding="utf-8")
     for model_name, model_responses in responses_dict.items():
         logger.info(f"Processing {len(model_responses)} responses from model: {model_name}")
+        
         if len(model_responses) != len(call_index_mapping):
             logger.error(
                 f"Model '{model_name}' returned {len(model_responses)} responses but expected {len(call_index_mapping)}. Mismatch."
             )
-
+        print(Fore.GREEN +"model_responses", model_responses, Fore.RESET + '\n')
+        if isinstance(model_responses, list) and len(model_responses) > 0:
+            f.write(model_responses[0])
+        output_ls_json=fetch_ls_of_json_outputs(model_responses, single_hop_qa_pairs)
+        #single_hop_qa_pairs.extend(output_ls_json)
         for idx, raw_response in enumerate(model_responses):
             if idx >= len(call_index_mapping):
                 break
@@ -353,7 +383,8 @@ def _process_responses_and_build_dataset(
                 except Exception as e:
                     logger.error(f"Error processing QA pair for row_index={row_index}, chunk_id={chunk_id}: {e}")
                     continue
-
+    df=pd.DataFrame(single_hop_qa_pairs)
+    df.to_csv("./logs/single_hop_qa_pairs.csv", index=False, encoding="utf-8")
     if not question_dataset_rows:
         return None
 
