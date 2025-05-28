@@ -62,16 +62,23 @@ YourBench is available on PyPI and requires **Python 3.12+**. You can install it
 
   Installing from source is recommended if you want the latest updates or to run the included example configuration.
 
-> **Note:** If you plan to use models that require API access (e.g. OpenAI GPT-4o or Hugging Face Inference API), make sure to have the appropriate credentials. You’ll also need a Hugging Face token (to optionally to upload results). See below for how to configure these before running YourBench.
+> **Note:** you will need to acquire a NVIDIA_API_KEY, head over to https://build.nvidia.com/ and select one of the model found in my_example.yaml and generate an NVIDIA_API_KEY following the user interface. Then create a file .env and supply below keys :
+```
+# create .env file place it at yourbench's root folder
+
+HF_TOKEN=<Your_hugging_face_token>
+HF_HUB_OFFLINE=1
+NVIDIA_API_KEY=<Your_NVIDIA_API_KEY>
+local_dataset_dir="./example/data/local_saved/"
+```
+
+
+
 
 ## Quickstart Usage
 
 Once installed, YourBench can be run from the command line to generate a custom evaluation set. Here’s a quick example:
 
-```bash
-# 1. (Optional) If not done already, install YourBench
-pip install yourbench
-```
 # 2. Prepare your API credentials (for model inference and Hub access)
 For example, create a .env file with required keys:
 echo "OPENROUTER_API_KEY=<your_openrouter_api_key>" >> .env        # Example
