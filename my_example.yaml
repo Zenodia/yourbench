@@ -52,9 +52,10 @@ hf_configuration:
   # and the dataset would be saved to disk as well.
   #
   # Example:
-  # local_dataset_dir: /some/path
-  # local_saving: false
+  local_dataset_dir: example/data/local_saved
+  local_saving: true
 
+language_of_interest : Swedish
 
 # ==============================================================================
 # MODEL CONFIGURATION
