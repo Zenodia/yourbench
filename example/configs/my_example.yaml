@@ -39,8 +39,7 @@ hf_configuration:
   # exists, newly generated entries get appended to it. If false, an existing
   # dataset with the same name is overwritten. This is useful if you want to
   # iteratively build a larger dataset rather than starting fresh each time.
-  concat_if_exist: false
-
+  concat_if_exist: false  
   # ----------------------------------------------------------
   # 'local_dataset_dir' and 'local_saving': (optional)
   #   local_dataset_dir: path for saving the dataset locally
@@ -227,7 +226,7 @@ pipeline:
     # additional_instructions: "Try to integrate multiple pieces of evidence across chunks to create deeper questions."
 
     # Control the format of generated questions:
-    question_type: "multi-choice   # "open-ended" (default): model generates the answer to the question
+    question_type: "multi-choice"   # "open-ended" (default): model generates the answer to the question
     #                               # "multi-choice": model creates options (A), (B), (C), (D) and selects the correct one
 
     # Similarly, you can sample the multi-hop chunks to cut down on inference:
