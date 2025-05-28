@@ -2,7 +2,7 @@ import os
 from typing import Any, Dict, Optional
 
 from loguru import logger
-
+import os
 from datasets import Dataset, DatasetDict, load_dataset, load_from_disk, concatenate_datasets
 from huggingface_hub import HfApi, whoami
 from huggingface_hub.utils import HFValidationError
@@ -240,7 +240,7 @@ def custom_save_dataset(
 
     dataset_repo_name = _get_full_dataset_repo_name(config)
 
-    local_dataset_dir = config.get("local_dataset_dir", "C./example/data/local_saved/")
+    local_dataset_dir = config.get("local_dataset_dir", "./example/data/local_saved/")
     if (
         local_dataset_dir is None
         and "hf_configuration" in config
@@ -248,7 +248,8 @@ def custom_save_dataset(
     ):
         local_dataset_dir = config["hf_configuration"].get("local_dataset_dir")
     save_local=True
-    local_dataset_dir="./example/data/local_saved/"
+    local_dataset_dir= local_dataset_dir if local_dataset_dir else os.environ["local_dataset_dir"]
+    
     if local_dataset_dir and save_local:
         logger.info(f"Saving dataset locally to: '{local_dataset_dir}'")
 

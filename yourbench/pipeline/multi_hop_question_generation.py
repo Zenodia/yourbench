@@ -47,7 +47,7 @@ Module-Level Dependencies:
 import random
 from typing import Any, Dict
 from dataclasses import field, dataclass
-
+import os
 from loguru import logger
 
 from datasets import Dataset
@@ -64,6 +64,7 @@ from yourbench.utils.dataset_engine import (
 # Import the unified parsing function
 from yourbench.utils.parsing_engine import shuffle_mcq, parse_qa_pairs_from_response
 from yourbench.utils.inference_engine import InferenceCall, run_inference
+from datasets import Dataset, DatasetDict, load_dataset, load_from_disk, concatenate_datasets
 
 
 @dataclass
@@ -149,7 +150,12 @@ def run(config: Dict[str, Any]) -> None:
         return
 
     # 1) Dataset Loading
-    dataset = custom_load_dataset(config=config, subset="chunked")
+    #dataset = custom_load_dataset(config=config, subset="chunked")
+    local_data_dir = config["hf_configuration"].get("local_dataset_dir")
+    local_dataset_dir = local_data_dir if local_data_dir else os.environ["local_dataset_dir"]
+    chunked_dataset = load_from_disk(dataset_path=os.environ["local_dataset_dir"]+"chunked")
+    summarized_dataset = load_from_disk(dataset_path=os.environ["local_dataset_dir"]+"summarized")
+    dataset=concatenate_datasets([chunked_dataset, summarized_dataset])
     logger.info(f"Loaded chunked subset with {len(dataset)} rows for Multi-hop question generation.")
 
     # 2) Build Inference Calls (including sampling)

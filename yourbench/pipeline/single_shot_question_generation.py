@@ -33,7 +33,7 @@ from typing import Any
 from dataclasses import field, dataclass
 
 from loguru import logger
-
+import os
 from datasets import Dataset
 from yourbench.utils.prompts import (
     QUESTION_GENERATION_USER_PROMPT,
@@ -48,7 +48,7 @@ from yourbench.utils.dataset_engine import (
 # Import the unified parsing function
 from yourbench.utils.parsing_engine import shuffle_mcq, parse_qa_pairs_from_response
 from yourbench.utils.inference_engine import InferenceCall, run_inference
-
+from datasets import Dataset, DatasetDict, load_dataset, load_from_disk, concatenate_datasets
 
 @dataclass
 class SingleHopQuestionRow:
@@ -116,7 +116,11 @@ def run(config: dict[str, Any]) -> None:
         logger.info("single_shot_question_generation stage is disabled. Skipping.")
         return
 
-    dataset = custom_load_dataset(config=config, subset="chunked")
+    #dataset = custom_load_dataset(config=config, subset="chunked")
+    
+    chunked_dataset = load_from_disk(dataset_path=os.environ["local_dataset_dir"]+"chunked")
+    summarized_dataset = load_from_disk(dataset_path=os.environ["local_dataset_dir"]+"summarized")
+    dataset=concatenate_datasets([chunked_dataset, summarized_dataset])
     logger.info(f"Loaded chunked subset with {len(dataset)} rows for Single-shot question generation.")
 
     inference_calls, call_index_mapping = _build_inference_calls(dataset, stage_config)
@@ -217,8 +221,12 @@ def _build_inference_calls(dataset, stage_config: SingleShotQuestionGenerationCo
     system_message = {"role": "system", "content": system_prompt}
     inference_calls = []
     call_index_mapping = []
-
-    for row_index, row in enumerate(dataset):
+    
+    chunked_dataset = load_from_disk(dataset_path=os.environ["local_dataset_dir"]+"chunked")
+    summarized_dataset = load_from_disk(dataset_path=os.environ["local_dataset_dir"]+"summarized")
+    dataset=concatenate_datasets([chunked_dataset, summarized_dataset])
+    n=len(dataset)
+    for row_index, row in zip(range(n), dataset):    
         doc_row = DocumentRow(
             document_summary=row.get("document_summary", "No summary available."),
             document_filename=row.get("document_filename", f"Document_{row_index}"),
