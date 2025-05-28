@@ -71,19 +71,17 @@ Once installed, YourBench can be run from the command line to generate a custom 
 ```bash
 # 1. (Optional) If not done already, install YourBench
 pip install yourbench
-
+```
 # 2. Prepare your API credentials (for model inference and Hub access)
-# For example, create a .env file with required keys:
-# echo "OPENROUTER_API_KEY=<your_openrouter_api_key>" >> .env        # Example
+For example, create a .env file with required keys:
+echo "OPENROUTER_API_KEY=<your_openrouter_api_key>" >> .env        # Example
 echo "HF_TOKEN=<your_huggingface_api_token>" >> .env              # Hugging Face token (for Hub datasets & inference)
 echo "NVIDIA_API_KEY"=<your_nvidia_api_key > >> .env          # set your NVIDIA_API_KEY
-echo "local_dataset_dir"="./example/data/local_saved/" >> .env          # set path to locally saved dataset instead of pushing to the huggingface hub, I usually set it to be "./example/data/local_saved/"
+echo "local_dataset_dir"="./example/data/local_saved/" >> .env   # set path to locally saved dataset instead of pushing to the huggingface hub, I usually set it to be "./example/data/local_saved/"
 
 Note: 
-remember to ```export HF_HUB_OFFLINE=1``` 
-for windows users do ```set HF_HUB_OFFLINE=1``` 
-
-
+  remember to ```export HF_HUB_OFFLINE=1``` 
+  for windows users do ```set HF_HUB_OFFLINE=1``` 
 
 # 3. Run the pipeline on the provided example config (uses sample docs and models)
 yourbench run --config my_example.yaml
