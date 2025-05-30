@@ -106,8 +106,10 @@ def run(config: dict[str, Any]) -> None:
             If `source_documents_dir` is missing in the config, indicating incomplete config.
     """
     stage_name = "upload_ingest_to_hub"
+    lang=config["language_of_interest"] 
+    
     stage_cfg = config.get("pipeline", {}).get(stage_name, {})
-    local_dataset_dir=config.get("local_dataset_dir","./example/data/local_saved/")
+    local_dataset_dir=config.get("local_dataset_dir",f"./example/data/local_saved/{lang}")
     print(Fore.YELLOW +"local_dataset_dir =", local_dataset_dir)
     # Check if this stage is turned off in config
     if not stage_cfg.get("run", False):

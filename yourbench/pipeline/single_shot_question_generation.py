@@ -119,8 +119,9 @@ def run(config: dict[str, Any]) -> None:
 
     #dataset = custom_load_dataset(config=config, subset="chunked")
     
-    chunked_dataset = load_from_disk(dataset_path=os.environ["local_dataset_dir"]+"chunked")
-    summarized_dataset = load_from_disk(dataset_path=os.environ["local_dataset_dir"]+"summarized")
+    load_from_disk_dir=config["local_dataset_dir"]
+    chunked_dataset = load_from_disk(dataset_path=load_from_disk_dir+"/chunked")
+    summarized_dataset = load_from_disk(dataset_path=load_from_disk_dir+"/summarized")
     dataset=concatenate_datasets([chunked_dataset, summarized_dataset])
     logger.info(f"Loaded chunked subset with {len(dataset)} rows for Single-shot question generation.")
 
@@ -245,9 +246,9 @@ def _build_inference_calls(config ,dataset, stage_config: SingleShotQuestionGene
     system_message = {"role": "system", "content": system_prompt}
     inference_calls = []
     call_index_mapping = []
-    
-    chunked_dataset = load_from_disk(dataset_path=os.environ["local_dataset_dir"]+"chunked")
-    summarized_dataset = load_from_disk(dataset_path=os.environ["local_dataset_dir"]+"summarized")
+    local_dataset_dir = config["local_dataset_dir"]
+    chunked_dataset = load_from_disk(dataset_path=local_dataset_dir+"/chunked")
+    summarized_dataset = load_from_disk(dataset_path=local_dataset_dir+"/summarized")
     dataset=concatenate_datasets([chunked_dataset, summarized_dataset])
     n=len(dataset)
     for row_index, row in zip(range(n), dataset):    

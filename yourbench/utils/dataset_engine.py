@@ -164,7 +164,8 @@ def custom_load_dataset(config: Dict[str, Any], subset: Optional[str] = None) ->
     Load a dataset subset from a local directory if specified, otherwise from Hugging Face.
     In offline mode, only load from local directory.
     """
-    local_dataset_dir = config.get("local_dataset_dir", "./example/data/local_saved/")
+    lang = config["language_of_interest"] 
+    local_dataset_dir = config.get("local_dataset_dir", f"./example/data/local_saved/{lang}")
     if (
         local_dataset_dir is None
         and "hf_configuration" in config
@@ -239,8 +240,8 @@ def custom_save_dataset(
             push_to_hub = False
 
     dataset_repo_name = _get_full_dataset_repo_name(config)
-
-    local_dataset_dir = config.get("local_dataset_dir", "./example/data/local_saved/")
+    lang = config["language_of_interest"] 
+    local_dataset_dir = config.get("local_dataset_dir", f"./example/data/local_saved/{lang}")
     if (
         local_dataset_dir is None
         and "hf_configuration" in config
