@@ -89,7 +89,7 @@ model_list:
     # If rate-limited, keep concurrency low or you risk hitting the API cap.
 
   # 4) Using a Gemini model (hypothetical Google approach):
-  - model_name: nvidia/llama-3.1-nemotron-ultra-253b-v1
+  - model_name: nvidia/llama-3.3-nemotron-super-49b-v1
     provider: null
     base_url: https://integrate.api.nvidia.com/v1
     api_key: $NVIDIA_API_KEY

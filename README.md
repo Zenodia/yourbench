@@ -72,7 +72,21 @@ NVIDIA_API_KEY=<Your_NVIDIA_API_KEY>
 local_dataset_dir="./example/data/local_saved/"
 ```
 
-one might need to actively set default 
+one might need to actively set default environment vars if using conda
+
+```
+conda env config vars set PYTHONUTF8=1
+```
+
+To ensure the jupyter notebook takes the installed .venv virtual environment as default
+after activated the venv 
+```
+.venv/Scripts/activate 
+## then 
+pip install jupyter loguru
+## then 
+python -m ipykernel install --user --name=myvenv --display-name "Python (.venv)"
+```
 
 
 
