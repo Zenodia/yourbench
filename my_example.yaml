@@ -32,7 +32,7 @@ hf_configuration:
   # 'hf_dataset_name': The name of the dataset repository on Hugging Face Hub.
   # If you're part of an organization, this might become ORG_NAME/DATASET_NAME.
   # For instance, "myuser/yourbench_advanced_example"
-  hf_dataset_name: test
+  hf_dataset_name: SVdriving
 
   # ----------------------------------------------------------
   # 'concat_if_exist': If true and a dataset with the same subset name already
@@ -52,10 +52,10 @@ hf_configuration:
   # and the dataset would be saved to disk as well.
   #
   # Example:
-  local_dataset_dir: example/data/local_saved
+  local_dataset_dir: example/data/local_saved/English
   local_saving: true
 
-language_of_interest : Swedish
+language_of_interest : English
 
 # ==============================================================================
 # MODEL CONFIGURATION
@@ -146,15 +146,15 @@ pipeline:
   # them into standard markdown. Possibly uses an LLM for advanced parsing (images, etc.).
   ingestion:
     run: true
-    source_documents_dir: example/data/raw   # Where your raw PDFs, HTML, etc. are
-    output_dir: example/data/processed       # Where to store the post-processed .md files
+    source_documents_dir: example/data/raw/en   # Where your raw PDFs, HTML, etc. are
+    output_dir: example/data/processed/en       # Where to store the post-processed .md files
 
   # 2) UPLOAD_INGEST_TO_HUB
   # Takes the .md documents from 'ingestion' output_dir, packages them into
   # a Hugging Face dataset, and (optionally) pushes to the Hub.
   upload_ingest_to_hub:
     run: true
-    source_documents_dir: example/data/processed
+    source_documents_dir: example/data/processed/en
     # If the directory is empty or missing, it will fail. Make sure your
     # ingestion stage successfully produced content.
 

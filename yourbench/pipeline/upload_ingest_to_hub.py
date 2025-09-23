@@ -176,6 +176,8 @@ def _collect_markdown_files(md_file_paths: list[str]) -> list[IngestedDocument]:
     ingested_docs: list[IngestedDocument] = []
     for file_path in md_file_paths:
         try:
+            file_path=file_path.replace("\\","/")
+            print(">>>>>>>> \n ", file_path , os.path.exists(file_path), "\n <<<<<<<<<<<<< \n")
             with open(file_path, "r", encoding="utf-8") as file_handle:
                 content = file_handle.read().strip()
 

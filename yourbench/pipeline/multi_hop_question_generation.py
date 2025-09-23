@@ -154,7 +154,7 @@ def run(config: Dict[str, Any]) -> None:
     # 1) Dataset Loading
     #dataset = custom_load_dataset(config=config, subset="chunked")
     
-    local_dataset_dir = config["local_dataset_dir"]
+    local_dataset_dir = config["hf_configuration"]["local_dataset_dir"]
     
     chunked_dataset = load_from_disk(dataset_path=local_dataset_dir+"/chunked")
     summarized_dataset = load_from_disk(dataset_path=local_dataset_dir+"/summarized")

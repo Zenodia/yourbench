@@ -65,12 +65,14 @@ YourBench is available on PyPI and requires **Python 3.12+**. You can install it
 > **Note:** you will need to acquire a NVIDIA_API_KEY, head over to https://build.nvidia.com/ and select one of the model found in my_example.yaml and generate an NVIDIA_API_KEY following the user interface. Then create a file .env and supply below keys :
 ```
 # create .env file place it at yourbench's root folder
-
+PYTHONUTF8=1
 HF_TOKEN=<Your_hugging_face_token>
 HF_HUB_OFFLINE=1
 NVIDIA_API_KEY=<Your_NVIDIA_API_KEY>
 local_dataset_dir="./example/data/local_saved/"
 ```
+
+one might need to actively set default 
 
 
 
