@@ -9,7 +9,8 @@ from loguru import logger
 from yourbench.analysis import run_analysis
 from yourbench.pipeline.handler import run_pipeline
 import locale
-locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+#locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+
 
 app = typer.Typer(
     name="yourbench",

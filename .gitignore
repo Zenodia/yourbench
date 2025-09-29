@@ -4,7 +4,14 @@
 *.png
 *.jpg
 *.jpeg
+.Trash-0/
+.ipynb_checkpoints/
 __pycache__/
+example/data/csv/
+example/data/raw/en/
+example/data/raw/sv/
+example/data/processed/
+example/data/local_saved/
 *.py[cod]
 *$py.class
 logs/

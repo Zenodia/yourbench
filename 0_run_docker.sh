@@ -1,0 +1,1 @@
+sudo docker run --gpus all  -it --rm -v $(pwd):/workspace  --shm-size=64g --ulimit memlock=-1 --ulimit stack=67108864 --net=host  --ulimit memlock=-1 --ulimit stack=67108864 --device=/dev/snd yourbench:latest /bin/bash #nvcr.io/nvidia/pytorch:24.04-py3

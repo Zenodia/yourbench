@@ -350,6 +350,7 @@ def _process_responses_and_build_dataset(
             for pair in qa_pairs:
                 try:
                     # Shuffle MCQ before extracting fields
+                    print(Fore.CYAN + " _process_response_and_build_dataset > \n ", type(pair), pair , Fore.RESET)
                     pair = shuffle_mcq(pair)
                     # Safely extract data from pair
                     question_text = str(pair.get("question", "")).strip()

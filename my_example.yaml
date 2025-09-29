@@ -39,7 +39,7 @@ hf_configuration:
   # exists, newly generated entries get appended to it. If false, an existing
   # dataset with the same name is overwritten. This is useful if you want to
   # iteratively build a larger dataset rather than starting fresh each time.
-  concat_if_exist: false
+  concat_if_exist: true
 
   # ----------------------------------------------------------
   # 'local_dataset_dir' and 'local_saving': (optional)
@@ -186,20 +186,20 @@ pipeline:
   chunking:
     run: true
     chunking_configuration:
-      chunking_mode: fast_chunking   # "fast_chunking" or "semantic_chunking"
+      chunking_mode: semantic_chunking   # "fast_chunking" or "semantic_chunking"
       l_max_tokens: 128              # Each chunk’s maximum token length
       token_overlap: 0               # Overlap between chunks in token-based splitting
       encoding_name: cl100k_base     # Tokenizer name for measuring token lengths
 
       # If using 'semantic_chunking':
-      #   l_min_tokens: 64
-      #   tau_threshold: 0.8
+      l_min_tokens: 64
+      tau_threshold: 0.8
       # The chunker merges or splits based on semantic similarity (cosine).
       #
       # For multi-hop chunk creation:
-      #   h_min: 2     # Minimum subchunks in a multi-hop combination
-      #   h_max: 5     # Maximum subchunks in a multi-hop combination
-      #   num_multihops_factor: 5
+      h_min: 5     # Minimum subchunks in a multi-hop combination
+      h_max: 10     # Maximum subchunks in a multi-hop combination
+      num_multihops_factor: 10
       #
       # Tweak these to produce bigger or fewer multi-hop combos or to tighten
       # the chunk boundaries for more finely grained questions.
@@ -214,7 +214,7 @@ pipeline:
     # additional_instructions: "Generate factual, short-answer questions at a college level."
 
     # Control the format of generated questions:
-    # question_type: "open-ended"   # "open-ended" (default): model generates the answer to the question
+    question_type: "multi-choice"   # "open-ended" (default): model generates the answer to the question
     #                               # "multi-choice": model creates options (A), (B), (C), (D) and selects the correct one
 
     # If your documents are large, you can randomly sample chunks to reduce cost:
@@ -242,7 +242,7 @@ pipeline:
   # subset, optionally adding chunk context and original document text. Useful for
   # quick or “lightweight” downstream evaluations.
   lighteval:
-    run: true
+    run: false
 
   # 8) CITATION_SCORE_FILTERING
   # Finally, runs fuzzy-match scoring on each question’s “citations” vs. the
