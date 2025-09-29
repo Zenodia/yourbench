@@ -335,7 +335,7 @@ def _process_responses_and_build_dataset(
         for idx, raw_response in enumerate(model_responses):
             if idx >= len(call_index_mapping):
                 break
-
+            print(Fore.LIGHTGREEN_EX +"iterate through **raw_response** from model_response >\n", raw_response, Fore.RESET + '\n')
             row_index, doc_id, chunk_id = call_index_mapping[idx]
             qa_pairs = parse_qa_pairs_from_response(raw_response)
 
@@ -350,7 +350,7 @@ def _process_responses_and_build_dataset(
             for pair in qa_pairs:
                 try:
                     # Shuffle MCQ before extracting fields
-                    print(Fore.CYAN + " _process_response_and_build_dataset > \n ", type(pair), pair , Fore.RESET)
+                    print(Fore.LIGHTCYAN_EX + " _process_response_and_build_dataset > \n ", type(pair), pair , Fore.RESET)
                     pair = shuffle_mcq(pair)
                     # Safely extract data from pair
                     question_text = str(pair.get("question", "")).strip()

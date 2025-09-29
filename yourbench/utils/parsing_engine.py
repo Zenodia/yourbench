@@ -3,7 +3,7 @@ import json
 import random
 import hashlib
 from typing import Any
-
+import ast
 from loguru import logger
 
 
@@ -61,30 +61,41 @@ def parse_qa_pairs_from_response(raw_response: str) -> list[dict[str, Any]]:
     if not raw_response or not isinstance(raw_response, str):
         return []
 
-    # 1) Check for <output_json>...</output_json>
-    extracted_json_str = _extract_tag_content(raw_response, "output_json")
-    if extracted_json_str.strip():
-        possible_parsed = _attempt_json_parse(_maybe_strip_triple_backticks(extracted_json_str))
-        if isinstance(possible_parsed, list):
-            return possible_parsed
+    if "### <output_json>" in raw_response:
+        idx=raw_response.index("<output_json>")+13 
+        end_idx=raw_response.index("</output_json>")
+        try : 
+            output=ast.literal_eval(raw_response[idx:end_idx].strip())
+            if isinstance(output, list) :
+                if isinstance(output[0], dict):
+                    return output
+        except Exception as e:
+            logger.debug(f"Error parsing literal_eval JSON: {e}") 
+    else:
+        # 1) Check for <output_json>...</output_json>
+        extracted_json_str = _extract_tag_content(raw_response, "output_json")
+        if extracted_json_str.strip():
+            possible_parsed = _attempt_json_parse(_maybe_strip_triple_backticks(extracted_json_str))
+            if isinstance(possible_parsed, list):
+                return possible_parsed
 
-    # 2) Check for ```json fenced code block
-    fence_pattern = r"```json\s*([\s\S]*?)\s*```"
-    fence_match = re.search(fence_pattern, raw_response)
-    if fence_match:
-        possible_parsed = _attempt_json_parse(fence_match.group(1).strip())
-        if isinstance(possible_parsed, list):
-            return possible_parsed
+        # 2) Check for ```json fenced code block
+        fence_pattern = r"```json\s*([\s\S]*?)\s*```"
+        fence_match = re.search(fence_pattern, raw_response)
+        if fence_match:
+            possible_parsed = _attempt_json_parse(fence_match.group(1).strip())
+            if isinstance(possible_parsed, list):
+                return possible_parsed
 
-    # 3) Best-effort bracket-based extraction
-    bracket_candidates = _best_effort_json_extract(raw_response)
-    for candidate in bracket_candidates:
-        possible_parsed = _attempt_json_parse(candidate)
-        if isinstance(possible_parsed, list):
-            return possible_parsed
+        # 3) Best-effort bracket-based extraction
+        bracket_candidates = _best_effort_json_extract(raw_response)
+        for candidate in bracket_candidates:
+            possible_parsed = _attempt_json_parse(candidate)
+            if isinstance(possible_parsed, list):
+                return possible_parsed
 
-    # If no valid parse was found, return empty.
-    return []
+        # If no valid parse was found, return empty.
+        return []
 
 
 def _extract_tag_content(text: str, tag: str) -> str:
