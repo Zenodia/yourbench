@@ -50,4 +50,7 @@ if __name__ == '__main__':
     single_shot_questions = load_from_disk(dataset_path="./example/data/local_saved/English/single_shot_questions")
     single_shot_qs=single_shot_questions.to_pandas()
     single_shot_qs.to_csv(f"/workspace/example/data/csv/{f_name}.csv", index=False)
+    
+    summarized_dataset.to_csv(f"/workspace/example/data/csv/summary_{f_name}.csv", index=False)
+    print(f"saving summary file summary_{f_name}.csv to /workspace/example/data/csv/ folder successfully !")
     print(f"saving file {f_name}.csv to /workspace/example/data/csv/ folder successfully !")

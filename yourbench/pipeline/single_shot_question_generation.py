@@ -338,7 +338,7 @@ def _process_responses_and_build_dataset(
 
             row_index, doc_id, chunk_id = call_index_mapping[idx]
             qa_pairs = parse_qa_pairs_from_response(raw_response)
-
+            
             # If parsing fails or returns nothing, still create a fallback row
             if not qa_pairs:
                 logger.warning(
