@@ -165,7 +165,8 @@ def custom_load_dataset(config: Dict[str, Any], subset: Optional[str] = None) ->
     In offline mode, only load from local directory.
     """
     lang = config["language_of_interest"] 
-    local_dataset_dir = config.get("local_dataset_dir", f"./example/data/local_saved/{lang}")
+    #local_dataset_dir = config.get("local_dataset_dir", f"./example/data/local_saved/{lang}")
+    local_dataset_dir = config["hf_configuration"]["local_dataset_dir"]
     if (
         local_dataset_dir is None
         and "hf_configuration" in config
@@ -241,7 +242,8 @@ def custom_save_dataset(
 
     dataset_repo_name = _get_full_dataset_repo_name(config)
     lang = config["language_of_interest"] 
-    local_dataset_dir = config.get("local_dataset_dir", f"./example/data/local_saved/{lang}")
+    #local_dataset_dir = config.get("local_dataset_dir", f"./example/data/local_saved/{lang}")
+    local_dataset_dir = config["hf_configuration"]["local_dataset_dir"]
     if (
         local_dataset_dir is None
         and "hf_configuration" in config

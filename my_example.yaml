@@ -141,8 +141,7 @@ model_roles:
 # Each of the following keys corresponds to a pipeline "stage." Setting "run: true"
 # will execute that stage, while "run: false" will skip it. 
 # For each stage, you can define additional parameters that fine-tune behavior.
-pipeline:
-
+pipeline:  
   # 1) INGESTION
   # Reads raw documents from disk, attempts to convert them to text, normalizes
   # them into standard markdown. Possibly uses an LLM for advanced parsing (images, etc.).

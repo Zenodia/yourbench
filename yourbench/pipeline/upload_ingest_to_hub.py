@@ -109,7 +109,8 @@ def run(config: dict[str, Any]) -> None:
     lang=config["language_of_interest"] 
     
     stage_cfg = config.get("pipeline", {}).get(stage_name, {})
-    local_dataset_dir=config.get("local_dataset_dir",f"./example/data/local_saved/{lang}")
+    #local_dataset_dir=config.get("local_dataset_dir",f"./example/data/local_saved/{lang}")
+    local_dataset_dir=config["hf_configuration"]["local_dataset_dir"]
     print(Fore.YELLOW +"local_dataset_dir =", local_dataset_dir)
     # Check if this stage is turned off in config
     if not stage_cfg.get("run", False):

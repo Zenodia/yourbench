@@ -9,6 +9,8 @@
 .Trash-0/
 .ipynb_checkpoints/
 __pycache__/
+my_test/
+.ipynb_checkpoints/
 example/data/csv/
 example/data/raw/en/
 example/data/raw/sv/
