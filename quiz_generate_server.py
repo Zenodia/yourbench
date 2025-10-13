@@ -61,7 +61,21 @@ def quiz_generating_pipeline(pdf_file_dir, save_csv_dir):
     yaml.dump(config, yaml_f)
 
     # invoking the pipeline 
-    subprocess.call(["yourbench", "run", "--config=./test.yaml"])
+    # add logfile for standard output , later on we will pipe this into the UI
+    proc =  subprocess.Popen(["yourbench", "run", "--config=./test.yaml"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    logfile = open('./my_test/logfile.txt', 'bw')
+    while True:
+        byte = proc.stdout.read(1)
+        if byte:
+            sys.stdout.buffer.write(byte)
+            sys.stdout.flush()
+            logfile.write(byte)
+            logfile.flush()
+        else:
+            break
+    exit_status = proc.returncode
+
+    #subprocess.call(["yourbench", "run", "--config=./test.yaml"])
     pdf_file_dir=config["pipeline"]["ingestion"]["source_documents_dir"]
     files=[f.split('.pdf')[0] for f in os.listdir(pdf_file_dir) if f.endswith(".pdf")]
     f_name='_'.join(files) 
