@@ -12,7 +12,7 @@ async def main():
         for tool in tools:
             print(f"Tool: {tool}")
 
-        result = await client.call_tool("quiz_generating_pipeline", {"pdf_file_dir": "/workspace/test_upload/", "save_csv_dir":'./my_test'})
+        result = await client.call_tool("quiz_generating_pipeline", {"pdf_file_dir": "/workspace/test_upload/", "save_csv_dir":'/workspace/mnt/'})
         result = result.content[0].text
         print(f"bash result: {result}")
         #result = await client.call_tool("tavily_concurrent_search_async", {"search_queries": ["Who is Leonardo Da Vinci?","what is the difference between CPU and GPU?"], "tavily_topic":"general","tavily_days":1})
