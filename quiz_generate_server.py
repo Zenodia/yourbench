@@ -95,7 +95,7 @@ def quiz_generating_pipeline(pdf_file_dir, save_csv_dir):
     summary_file_save_to=os.path.join(save_csv_path, f"summary_{f_name}.csv")
     summarized_dataset.to_csv(summary_file_save_to, index=False)
     print(f"saving summary file summary_{f_name}.csv to : \n {summary_file_save_to} successfully !")
-    output_message=f"The quiz generation pipeline is finished\n, we save the single_shot quiz questions into a csv file :{single_shot_file_save_to} \nand the summary file is saved to: {summary_file_save_to}."
+    output_message=f"pdf_file:{f_name}.pdf|single_shot_csv_file:{single_shot_file_save_to}|summary_file:{summary_file_save_to}"
     return output_message
 
 
