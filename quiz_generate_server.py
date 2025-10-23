@@ -95,7 +95,15 @@ def quiz_generating_pipeline(pdf_file_dir, save_csv_dir):
     summary_file_save_to=os.path.join(save_csv_path, f"summary_{f_name}.csv")
     summarized_dataset.to_csv(summary_file_save_to, index=False)
     print(f"saving summary file summary_{f_name}.csv to : \n {summary_file_save_to} successfully !")
-    output_message=f"pdf_file:{f_name}.pdf|single_shot_csv_file:{single_shot_file_save_to}|summary_file:{summary_file_save_to}"
+    
+    multiple_pdfs = [f for f in os.listdir(pdf_file_dir) if f.endswith(".pdf")]
+    n=len(multiple_pdfs)
+    if n >1:
+        n=len(multiple_pdfs)
+        pdfs_files=','.join(multiple_pdfs)
+        output_message=f"count:{str(n)}|pdf_files:{pdfs_files}|single_shot_csv_file:{single_shot_file_save_to}|summary_file:{summary_file_save_to}"
+    else:
+        output_message=f"count:{str(n)}|pdf_file:{multiple_pdfs[0]}|single_shot_csv_file:{single_shot_file_save_to}|summary_file:{summary_file_save_to}"
     return output_message
 
 
