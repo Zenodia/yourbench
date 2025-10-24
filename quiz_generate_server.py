@@ -80,8 +80,8 @@ def quiz_generating_pipeline(pdf_file_dir, save_csv_dir):
     exit_status = proc.returncode
     
     pdf_file_dir=config["pipeline"]["ingestion"]["source_documents_dir"]
-    files=[f.split('.pdf')[0] for f in os.listdir(pdf_file_dir) if f.endswith(".pdf")]
-    f_name='_'.join(files) 
+    f_name=save_csv_dir.split('/')[-1].replace('.pdf','')
+    
     print(Fore.CYAN +"using original pdf file name extracted from yaml file=", f_name , Fore.RESET)    
     load_dir=config["hf_configuration"]["local_dataset_dir"]
     chunked_dataset = load_from_disk(dataset_path=os.path.join(load_dir,"chunked"))
@@ -96,14 +96,8 @@ def quiz_generating_pipeline(pdf_file_dir, save_csv_dir):
     summarized_dataset.to_csv(summary_file_save_to, index=False)
     print(f"saving summary file summary_{f_name}.csv to : \n {summary_file_save_to} successfully !")
     
-    multiple_pdfs = [f for f in os.listdir(pdf_file_dir) if f.endswith(".pdf")]
-    n=len(multiple_pdfs)
-    if n >1:
-        n=len(multiple_pdfs)
-        pdfs_files=','.join(multiple_pdfs)
-        output_message=f"count:{str(n)}|pdf_files:{pdfs_files}|single_shot_csv_file:{single_shot_file_save_to}|summary_file:{summary_file_save_to}"
-    else:
-        output_message=f"count:{str(n)}|pdf_file:{multiple_pdfs[0]}|single_shot_csv_file:{single_shot_file_save_to}|summary_file:{summary_file_save_to}"
+    
+    output_message=f"pdf_file:{f_name}.pdf|single_shot_csv_file:{single_shot_file_save_to}|summary_file:{summary_file_save_to}"
     return output_message
 
 
