@@ -86,12 +86,16 @@ def quiz_generating_pipeline(pdf_file_dir, save_csv_dir):
     load_dir=config["hf_configuration"]["local_dataset_dir"]
     chunked_dataset = load_from_disk(dataset_path=os.path.join(load_dir,"chunked"))
     summarized_dataset = load_from_disk(dataset_path=os.path.join(load_dir,"summarized"))
-    single_shot_questions = load_from_disk(dataset_path=os.path.join(load_dir,"single_shot_questions"))
-    single_shot_qs=single_shot_questions.to_pandas()
-    save_csv_path=os.path.join(save_csv_dir, 'csv')
-    single_shot_file_save_to = os.path.join(save_csv_path, f"{f_name}.csv")
-    print(f"saving file {f_name}.csv to :\n {single_shot_file_save_to} successfully !")
-    single_shot_qs.to_csv(single_shot_file_save_to, index=False)
+    try:
+        single_shot_questions = load_from_disk(dataset_path=os.path.join(load_dir,"single_shot_questions"))
+        single_shot_qs=single_shot_questions.to_pandas()
+        save_csv_path=os.path.join(save_csv_dir, 'csv')
+        single_shot_file_save_to = os.path.join(save_csv_path, f"{f_name}.csv")
+        print(f"saving file {f_name}.csv to :\n {single_shot_file_save_to} successfully !")
+        single_shot_qs.to_csv(single_shot_file_save_to, index=False)
+    except Exception as e:
+        print(Fore.RED +f"Error in saving single shot questions csv file: {e}" + Fore.RESET)
+        single_shot_file_save_to="N/A"
     summary_file_save_to=os.path.join(save_csv_path, f"summary_{f_name}.csv")
     summarized_dataset.to_csv(summary_file_save_to, index=False)
     print(f"saving summary file summary_{f_name}.csv to : \n {summary_file_save_to} successfully !")
