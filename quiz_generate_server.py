@@ -1,42 +1,24 @@
-from fastmcp import FastMCP
-from dotenv import load_dotenv
-from colorama import Fore
-import asyncio
-import subprocess
-import time
 import glob
+import os
+import subprocess
+import sys
+import tempfile
+import time
+import yaml
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import List, Dict, Any
+
 import psutil
-import tempfile
-import shutil as shutil_module
-
-import sys, os
-from yourbench.pipeline.single_shot_question_generation import _load_stage_config
-import random
-from dataclasses import field, dataclass
-
+from colorama import Fore
+from datasets import load_from_disk
+from dotenv import load_dotenv
+from fastmcp import FastMCP
 from loguru import logger
 
-from datasets import Dataset
-from yourbench.utils.prompts import (
-    QUESTION_GENERATION_USER_PROMPT,
-    QUESTION_GENERATION_SYSTEM_PROMPT,
-    QUESTION_GENERATION_SYSTEM_PROMPT_MULTI,
-)
-from yourbench.utils.dataset_engine import (
-    custom_load_dataset,
-    custom_save_dataset,
-)
-
-# Import the unified parsing function
-from yourbench.utils.parsing_engine import shuffle_mcq, parse_qa_pairs_from_response
-from yourbench.utils.inference_engine import InferenceCall, run_inference
+import shutil as shutil_module
 from yourbench.utils.loading_engine import load_config
-from datasets import Dataset, DatasetDict, load_dataset, load_from_disk, concatenate_datasets
-import yaml
-from colorama import Fore
+
 load_dotenv()
 
 # ============================================================================
@@ -48,11 +30,11 @@ BATCH_SIZE = int(os.getenv("QUIZ_SERVER_BATCH_SIZE", "15"))
 AUTO_TUNE_WORKERS = os.getenv("QUIZ_SERVER_AUTO_TUNE", "true").lower() == "true"
 BUFFER_SIZE = int(os.getenv("QUIZ_SERVER_BUFFER_SIZE", "8192"))
 
-logger.info("🔧 Server Configuration:")
-logger.info(f"   MAX_WORKERS_LIMIT: {MAX_WORKERS_LIMIT}")
-logger.info(f"   MEMORY_PER_WORKER_GB: {MEMORY_PER_WORKER_GB}")
-logger.info(f"   BATCH_SIZE: {BATCH_SIZE}")
-logger.info(f"   AUTO_TUNE_WORKERS: {AUTO_TUNE_WORKERS}")
+# Constants
+LARGE_BATCH_THRESHOLD = 20
+MEMORY_WARNING_THRESHOLD = 85
+MEMORY_CRITICAL_THRESHOLD = 90
+MEMORY_ERROR_THRESHOLD = 95
 
 # ============================================================================
 # HELPER FUNCTIONS
@@ -74,6 +56,45 @@ def discover_pdfs(pdf_dir: str) -> List[str]:
     for pdf in pdf_files:
         logger.info(f"   - {os.path.basename(pdf)}")
     return sorted(pdf_files)
+
+
+def check_for_api_errors(log_file_path: str) -> str:
+    """
+    Check log file for common API errors
+
+    Args:
+        log_file_path: Path to subprocess log file
+
+    Returns:
+        Error description if API error found, empty string otherwise
+    """
+    if not os.path.exists(log_file_path):
+        return ""
+
+    try:
+        with open(log_file_path, 'r') as f:
+            log_content = f.read().lower()
+
+        # Check for common API error patterns
+        api_error_patterns = [
+            ("rate limit", "Rate limit exceeded"),
+            ("quota exceeded", "API quota exceeded"),
+            ("401", "Authentication failed"),
+            ("403", "Authorization failed"),
+            ("timeout", "API timeout"),
+            ("connection refused", "Cannot connect to API"),
+            ("api key", "API key issue"),
+            ("openai", "OpenAI API error"),
+            ("anthropic", "Anthropic API error"),
+        ]
+
+        for pattern, description in api_error_patterns:
+            if pattern in log_content:
+                return description
+
+        return ""
+    except Exception:
+        return ""
 
 
 def calculate_optimal_workers(num_pdfs: int) -> int:
@@ -99,7 +120,7 @@ def calculate_optimal_workers(num_pdfs: int) -> int:
     optimal = min(cpu_workers, memory_workers, user_limit)
 
     # For large batches, be conservative
-    if num_pdfs > 20:
+    if num_pdfs > LARGE_BATCH_THRESHOLD:
         optimal = min(optimal, 3)
 
     # For single PDF, use 1 worker
@@ -143,11 +164,10 @@ def process_single_pdf(pdf_path: str, base_save_dir: str, config_template_path: 
         pdf_input_dir = os.path.join(pdf_work_dir, "input")
         os.makedirs(pdf_input_dir, exist_ok=True)
 
-        # Copy PDF to isolated input directory (or create symlink)
-        import shutil
+        # Copy PDF to isolated input directory
         pdf_input_path = os.path.join(pdf_input_dir, os.path.basename(pdf_path))
         if not os.path.exists(pdf_input_path):
-            shutil.copy2(pdf_path, pdf_input_path)
+            shutil_module.copy2(pdf_path, pdf_input_path)
 
         # Load and customize config for this PDF
         config = load_config(config_template_path)
@@ -164,27 +184,43 @@ def process_single_pdf(pdf_path: str, base_save_dir: str, config_template_path: 
         # Run yourbench subprocess
         subprocess_start = time.time()
         yourbench_cmd = os.path.join(os.path.dirname(sys.executable), "yourbench")
+
+        # Validate yourbench executable exists
+        if not os.path.isfile(yourbench_cmd):
+            raise FileNotFoundError(f"yourbench executable not found: {yourbench_cmd}")
+
         log_file_path = os.path.join(pdf_work_dir, "logfile.txt")
 
-        proc = subprocess.Popen(
+        # Use context manager for subprocess
+        with subprocess.Popen(
             [yourbench_cmd, "run", f"--config={test_yaml_path}"],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT
-        )
+        ) as proc:
+            # Read output with buffered I/O
+            with open(log_file_path, 'wb') as logfile:
+                while True:
+                    chunk = proc.stdout.read(BUFFER_SIZE)
+                    if not chunk:
+                        break
+                    logfile.write(chunk)
 
-        # Read output with buffered I/O
-        with open(log_file_path, 'wb') as logfile:
-            while True:
-                chunk = proc.stdout.read(BUFFER_SIZE)
-                if not chunk:
-                    break
-                logfile.write(chunk)
+            returncode = proc.wait()
+            subprocess_duration = time.time() - subprocess_start
 
-        proc.wait()
-        subprocess_duration = time.time() - subprocess_start
+            if returncode != 0:
+                # Include tail of log in error message
+                try:
+                    with open(log_file_path, 'r') as f:
+                        log_lines = f.readlines()
+                        last_lines = ''.join(log_lines[-20:]) if log_lines else 'No log output'
+                except Exception:
+                    last_lines = 'Could not read log file'
 
-        if proc.returncode != 0:
-            raise Exception(f"yourbench process failed with return code {proc.returncode}")
+                raise subprocess.CalledProcessError(
+                    returncode, yourbench_cmd,
+                    output=f"Process failed with return code {returncode}\nLast log lines:\n{last_lines}"
+                )
 
         # Load and save datasets
         load_dir = config["hf_configuration"]["local_dataset_dir"]
@@ -197,33 +233,51 @@ def process_single_pdf(pdf_path: str, base_save_dir: str, config_template_path: 
         save_csv_path = os.path.join(pdf_work_dir, 'csv')
         single_shot_file = None
 
-        try:
-            single_shot_questions = load_from_disk(dataset_path=os.path.join(load_dir, "single_shot_questions"))
-            single_shot_qs = single_shot_questions.to_pandas()
-            single_shot_file = os.path.join(save_csv_path, f"{pdf_name}.csv")
-            single_shot_qs.to_csv(single_shot_file, index=False)
-        except Exception as e:
-            logger.warning(f"Could not save single shot questions for {pdf_name}: {e}")
+        # Try to load and save quiz questions
+        single_shot_path = os.path.join(load_dir, "single_shot_questions")
+        if not os.path.exists(single_shot_path):
+            # Check log for API errors
+            api_error = check_for_api_errors(log_file_path)
+            if api_error:
+                logger.warning(f"⚠️  No quiz questions for {pdf_name}: LLM API issue - {api_error}")
+            else:
+                logger.warning(f"⚠️  No quiz questions for {pdf_name}: Pipeline didn't generate questions (check: content quality, sampling, config)")
+        else:
+            try:
+                single_shot_questions = load_from_disk(dataset_path=single_shot_path)
+                single_shot_qs = single_shot_questions.to_pandas()
+                single_shot_file = os.path.join(save_csv_path, f"{pdf_name}.csv")
+                single_shot_qs.to_csv(single_shot_file, index=False)
+            except Exception as e:
+                logger.error(f"❌ Failed to save quiz questions for {pdf_name}: {e}")
 
         summary_file = os.path.join(save_csv_path, f"summary_{pdf_name}.csv")
         summarized_dataset.to_csv(summary_file, index=False)
 
         total_duration = time.time() - start_time
 
-        logger.info(f"✅ Completed: {pdf_name} in {total_duration:.1f}s")
+        # Determine completion status
+        if single_shot_file:
+            completion_status = "complete"
+            logger.info(f"✅ Completed: {pdf_name} in {total_duration:.1f}s")
+        else:
+            completion_status = "partial"
+            logger.warning(f"⚠️  Completed with warnings: {pdf_name} in {total_duration:.1f}s (no quiz questions)")
 
         return {
             "status": "success",
+            "completion": completion_status,  # "complete" or "partial"
             "pdf_name": pdf_name,
             "pdf_path": pdf_path,
             "work_dir": pdf_work_dir,
             "single_shot_csv": single_shot_file,
             "summary_csv": summary_file,
             "duration": total_duration,
-            "subprocess_duration": subprocess_duration
+            "subprocess_duration": subprocess_duration,
+            "has_quiz_questions": single_shot_file is not None
         }
 
-    except Exception as e:
+    except (subprocess.SubprocessError, OSError, IOError, FileNotFoundError) as e:
         total_duration = time.time() - start_time
         logger.error(f"❌ Failed: {pdf_name} - {str(e)}")
         return {
@@ -231,6 +285,17 @@ def process_single_pdf(pdf_path: str, base_save_dir: str, config_template_path: 
             "pdf_name": pdf_name,
             "pdf_path": pdf_path,
             "error": str(e),
+            "duration": total_duration
+        }
+    except Exception as e:
+        # Unexpected errors - log with full traceback
+        total_duration = time.time() - start_time
+        logger.exception(f"❌ Unexpected error in {pdf_name}")
+        return {
+            "status": "failed",
+            "pdf_name": pdf_name,
+            "pdf_path": pdf_path,
+            "error": f"Unexpected error: {str(e)}",
             "duration": total_duration
         }
 
@@ -254,7 +319,7 @@ def merge_results_to_original_format(results: List[Dict[str, Any]], save_csv_dir
     os.makedirs(os.path.join(save_csv_dir, "csv"), exist_ok=True)
 
     # Use save_csv_dir name for output files (original behavior)
-    output_name = Path(save_csv_dir).name if save_csv_dir.rstrip('/') else "output"
+    output_name = Path(save_csv_dir).name.strip() or "output"
 
     # Collect all successful results
     successful = [r for r in results if r["status"] == "success"]
@@ -307,6 +372,29 @@ def merge_results_to_original_format(results: List[Dict[str, Any]], save_csv_dir
     return merged_files
 
 
+def validate_directories(pdf_dir: str, save_dir: str):
+    """
+    Validate input and output directories
+
+    Args:
+        pdf_dir: PDF input directory
+        save_dir: CSV output directory
+
+    Raises:
+        ValueError: If directories don't exist or aren't accessible
+        PermissionError: If directories aren't readable/writable
+    """
+    if not os.path.isdir(pdf_dir):
+        raise ValueError(f"PDF directory not found: {pdf_dir}")
+    if not os.access(pdf_dir, os.R_OK):
+        raise PermissionError(f"Cannot read PDF directory: {pdf_dir}")
+
+    # Create save directory if it doesn't exist
+    os.makedirs(save_dir, exist_ok=True)
+    if not os.access(save_dir, os.W_OK):
+        raise PermissionError(f"Cannot write to save directory: {save_dir}")
+
+
 mcp = FastMCP("MCPTools")
 @mcp.tool()
 def quiz_generating_pipeline(pdf_file_dir: str, save_csv_dir: str) -> str:
@@ -325,7 +413,18 @@ def quiz_generating_pipeline(pdf_file_dir: str, save_csv_dir: str) -> str:
     """
     start_time = time.time()
     logger.info(f"🚀 Starting quiz generation pipeline at {time.strftime('%H:%M:%S')}")
+    logger.info(f"   MAX_WORKERS_LIMIT: {MAX_WORKERS_LIMIT}")
+    logger.info(f"   MEMORY_PER_WORKER_GB: {MEMORY_PER_WORKER_GB}")
+    logger.info(f"   BATCH_SIZE: {BATCH_SIZE}")
+    logger.info(f"   AUTO_TUNE_WORKERS: {AUTO_TUNE_WORKERS}")
     print(Fore.BLUE + f"pdf_file_dir = {pdf_file_dir}\nsave_csv_dir = {save_csv_dir}" + Fore.RESET)
+
+    # Validate directories
+    try:
+        validate_directories(pdf_file_dir, save_csv_dir)
+    except (ValueError, PermissionError) as e:
+        logger.error(f"❌ Directory validation failed: {e}")
+        return f"status:error|message:Directory validation failed: {e}"
 
     # Discover all PDFs
     pdf_files = discover_pdfs(pdf_file_dir)
@@ -338,8 +437,11 @@ def quiz_generating_pipeline(pdf_file_dir: str, save_csv_dir: str) -> str:
     # Calculate optimal workers
     max_workers = calculate_optimal_workers(total_pdfs)
 
-    # Get config template path
-    config_template_path = "./my_example.yaml"
+    # Get config template path with validation
+    config_template_path = os.getenv("QUIZ_CONFIG_TEMPLATE", "./my_example.yaml")
+    if not os.path.exists(config_template_path):
+        logger.error(f"❌ Config template not found: {config_template_path}")
+        return f"status:error|message:Config template not found: {config_template_path}"
 
     # Create temporary directory for parallel processing
     temp_base_dir = tempfile.mkdtemp(prefix="quiz_gen_")
@@ -382,12 +484,18 @@ def quiz_generating_pipeline(pdf_file_dir: str, save_csv_dir: str) -> str:
                         progress_pct = (completed / total_pdfs) * 100
                         logger.info(f"📊 Progress: {completed}/{total_pdfs} ({progress_pct:.1f}%)")
 
-                        # Memory check
+                        # Memory check with throttling
                         mem_percent = psutil.virtual_memory().percent
-                        if mem_percent > 85:
+                        if mem_percent > MEMORY_ERROR_THRESHOLD:
+                            logger.error(f"🛑 Critical memory: {mem_percent:.1f}% - stopping")
+                            raise MemoryError(f"Out of memory: {mem_percent:.1f}%")
+                        elif mem_percent > MEMORY_CRITICAL_THRESHOLD:
+                            logger.warning(f"⚠️  Critical memory: {mem_percent:.1f}% - pausing")
+                            time.sleep(5)  # Give system time to recover
+                        elif mem_percent > MEMORY_WARNING_THRESHOLD:
                             logger.warning(f"⚠️  High memory usage: {mem_percent:.1f}%")
 
-                    except Exception as e:
+                    except (subprocess.SubprocessError, OSError, IOError, MemoryError) as e:
                         logger.error(f"❌ Exception processing {os.path.basename(pdf_path)}: {e}")
                         results.append({
                             "status": "failed",
@@ -395,6 +503,9 @@ def quiz_generating_pipeline(pdf_file_dir: str, save_csv_dir: str) -> str:
                             "pdf_name": Path(pdf_path).stem,
                             "error": str(e)
                         })
+                        # Re-raise MemoryError to stop further processing
+                        if isinstance(e, MemoryError):
+                            raise
 
         # Merge results into original output format
         merged_files = merge_results_to_original_format(results, save_csv_dir)
@@ -412,19 +523,31 @@ def quiz_generating_pipeline(pdf_file_dir: str, save_csv_dir: str) -> str:
     successful = [r for r in results if r["status"] == "success"]
     failed = [r for r in results if r["status"] == "failed"]
 
+    # Break down successful into complete vs partial
+    complete = [r for r in successful if r.get("completion") == "complete"]
+    partial = [r for r in successful if r.get("completion") == "partial"]
+
     logger.info("=" * 70)
     logger.info(f"🎉 Pipeline completed in {total_duration:.1f}s ({total_duration/60:.1f} minutes)")
     logger.info(f"   Total PDFs: {total_pdfs}")
-    logger.info(f"   Successful: {len(successful)}")
-    logger.info(f"   Failed: {len(failed)}")
+    logger.info(f"   ✅ Complete: {len(complete)} (quiz questions + summaries)")
+    if partial:
+        logger.info(f"   ⚠️  Partial: {len(partial)} (summaries only, no quiz questions)")
+    logger.info(f"   ❌ Failed: {len(failed)}")
 
     if successful:
         logger.info(f"   Average time per PDF: {sum(r['duration'] for r in successful)/len(successful):.1f}s")
 
     # Print summary
-    print(Fore.GREEN + "\n✅ Successfully processed:" + Fore.RESET)
-    for r in successful:
-        print(f"   - {r['pdf_name']}: {r['duration']:.1f}s")
+    if complete:
+        print(Fore.GREEN + "\n✅ Complete (quiz + summary):" + Fore.RESET)
+        for r in complete:
+            print(f"   - {r['pdf_name']}: {r['duration']:.1f}s")
+
+    if partial:
+        print(Fore.YELLOW + "\n⚠️  Partial (summary only):" + Fore.RESET)
+        for r in partial:
+            print(f"   - {r['pdf_name']}: {r['duration']:.1f}s")
 
     if failed:
         print(Fore.RED + "\n❌ Failed:" + Fore.RESET)
@@ -442,11 +565,12 @@ def quiz_generating_pipeline(pdf_file_dir: str, save_csv_dir: str) -> str:
     logger.info("=" * 70)
 
     # Format output message (original format - single combined file)
-    output_name = Path(save_csv_dir).name if save_csv_dir.rstrip('/') else "output"
+    output_name = Path(save_csv_dir).name.strip() or "output"
     output_parts = [
         f"status:completed",
         f"total:{total_pdfs}",
-        f"successful:{len(successful)}",
+        f"complete:{len(complete)}",
+        f"partial:{len(partial)}",
         f"failed:{len(failed)}",
         f"duration:{total_duration:.1f}s",
         f"pdf_file:{output_name}.pdf"  # Original naming convention
